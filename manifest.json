@@ -1,0 +1,40 @@
+{
+  "name": "Sand Timer",
+  "short_name": "SandTimer",
+  "description": "A beautiful hourglass sand timer with animated sand dots. Works offline.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0618",
+  "theme_color": "#1a0a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "5 Minute Timer",
+      "short_name": "5 min",
+      "description": "Start a 5 minute sand timer",
+      "url": "/?t=5"
+    },
+    {
+      "name": "25 Minute Timer",
+      "short_name": "25 min",
+      "description": "Start a 25 minute Pomodoro timer",
+      "url": "/?t=25"
+    }
+  ]
+}

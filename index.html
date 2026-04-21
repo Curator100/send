@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sand Timer — PWA</title>
+  <meta name="description" content="A beautiful hourglass sand timer with animated sand dots. Works offline as a PWA." />
+  <meta name="theme-color" content="#1a0a2e" />
+
+  <!-- PWA Meta -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SandTimer" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:wght@300;400&display=swap');
+
+    :root {
+      --bg: #0d0618;
+      --bg2: #1a0a2e;
+      --bg3: #150822;
+      --gold: #f0c040;
+      --gold2: #e8a820;
+      --amber: #ff8c42;
+      --sand1: #ffd89b;
+      --sand2: #ffb347;
+      --sand3: #ff8c00;
+      --glass: rgba(255,255,255,0.06);
+      --rim: rgba(240,192,64,0.4);
+      --text: #f5e6c8;
+      --muted: rgba(245,230,200,0.5);
+      --danger: #ff4d6a;
+      --success: #50fa7b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Crimson Pro', Georgia, serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-x: hidden;
+      padding: 0 1rem 3rem;
+    }
+
+    /* Starfield bg */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(100,40,180,0.25) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 80%, rgba(200,100,30,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(20,5,50,0.8) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: white;
+      animation: twinkle var(--d) ease-in-out infinite;
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: var(--min); transform: scale(1); }
+      50% { opacity: var(--max); transform: scale(1.4); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    header {
+      text-align: center;
+      padding: 2.5rem 0 1.5rem;
+    }
+    header h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.6rem, 5vw, 2.2rem);
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 30px rgba(240,192,64,0.5), 0 2px 0 rgba(0,0,0,0.5);
+    }
+    header p {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-top: 0.3rem;
+      letter-spacing: 0.05em;
+    }
+
+    /* ======= HOURGLASS ======= */
+    .hourglass-wrap {
+      position: relative;
+      width: 200px;
+      height: 320px;
+      margin: 1rem 0 0.5rem;
+      filter: drop-shadow(0 0 30px rgba(240,192,64,0.2));
+    }
+
+    .hourglass-svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Sand particle canvas overlaid on hourglass */
+    #sandCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      border-radius: 4px;
+    }
+
+    /* ======= CONTROLS ======= */
+    .time-display {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(2.8rem, 10vw, 3.8rem);
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 0.05em;
+      text-align: center;
+      text-shadow: 0 0 40px rgba(240,192,64,0.6);
+      margin: 0.8rem 0 0.4rem;
+      line-height: 1;
+    }
+
+    .time-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .duration-picker {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 1.4rem;
+    }
+    .dur-btn {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--rim);
+      background: rgba(240,192,64,0.07);
+      color: var(--gold);
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .dur-btn:hover { background: rgba(240,192,64,0.15); border-color: var(--gold); }
+    .dur-btn.active { background: rgba(240,192,64,0.2); border-color: var(--gold); box-shadow: 0 0 16px rgba(240,192,64,0.3); }
+
+    .custom-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 1.4rem;
+    }
+    .custom-wrap label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+    .custom-wrap input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 4px;
+      background: linear-gradient(to right, var(--gold) var(--pct, 20%), rgba(255,255,255,0.15) 0%);
+      border-radius: 4px;
+      outline: none;
+    }
+    .custom-wrap input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 10px rgba(240,192,64,0.6);
+      cursor: pointer;
+    }
+    .custom-wrap span {
+      font-family: 'Cinzel', serif;
+      font-size: 0.85rem;
+      color: var(--gold);
+      min-width: 44px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      margin-bottom: 1.6rem;
+    }
+
+    .btn {
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      padding: 0.75rem 2rem;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.25s;
+      text-transform: uppercase;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold), var(--amber));
+      color: #1a0a00;
+      box-shadow: 0 4px 20px rgba(240,192,64,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(240,192,64,0.55); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.07);
+      color: var(--muted);
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+
+    /* Progress arc */
+    .progress-ring {
+      margin: 0.5rem auto 1rem;
+      position: relative;
+      width: 60px;
+      height: 60px;
+    }
+    .progress-ring svg { width: 60px; height: 60px; transform: rotate(-90deg); }
+    .progress-ring .track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 3; }
+    .progress-ring .fill { fill: none; stroke: var(--gold); stroke-width: 3; stroke-linecap: round;
+      stroke-dasharray: 163; stroke-dashoffset: 163; transition: stroke-dashoffset 0.5s; }
+    .progress-ring .pct-text {
+      position: absolute; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 0.75rem; color: var(--gold);
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 0.6rem 1.2rem;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 50px;
+      margin-bottom: 1.2rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .status-dot.installed { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+
+    /* PWA Install banner */
+    #installBanner {
+      display: none;
+      width: 100%;
+      max-width: 440px;
+      background: linear-gradient(135deg, rgba(240,192,64,0.12), rgba(255,140,66,0.08));
+      border: 1px solid var(--rim);
+      border-radius: 16px;
+      padding: 1rem 1.4rem;
+      margin-bottom: 1.2rem;
+      gap: 12px;
+      align-items: center;
+    }
+    #installBanner.show { display: flex; }
+    #installBanner .banner-text { flex: 1; }
+    #installBanner .banner-text strong { font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); display: block; margin-bottom: 2px; }
+    #installBanner .banner-text span { font-size: 0.78rem; color: var(--muted); }
+    #installBtn { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 600; padding: 0.45rem 1.1rem; background: var(--gold); color: #1a0a00; border: none; border-radius: 50px; cursor: pointer; white-space: nowrap; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(30,15,60,0.95);
+      border: 1px solid var(--rim);
+      border-radius: 50px;
+      padding: 0.7rem 1.6rem;
+      font-size: 0.85rem;
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.08em;
+      z-index: 1000;
+      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Flip animation */
+    .hourglass-wrap.flipping {
+      animation: flip 0.8s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+    }
+    @keyframes flip {
+      0% { transform: rotateY(0deg) rotateZ(0deg); }
+      50% { transform: rotateY(90deg) rotateZ(180deg); }
+      100% { transform: rotateY(0deg) rotateZ(360deg); }
+    }
+
+    /* Done pulse */
+    .hourglass-wrap.done {
+      animation: pulse-glow 1s ease-in-out infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 20px rgba(240,192,64,0.2)); }
+      50% { filter: drop-shadow(0 0 50px rgba(240,192,64,0.8)); }
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.72rem;
+      color: rgba(245,230,200,0.25);
+      letter-spacing: 0.1em;
+      padding-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="container">
+  <header>
+    <h1>⌛ SAND TIMER</h1>
+    <p>Ancient time, modern magic</p>
+  </header>
+
+  <!-- Status bar -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-dot" id="onlineDot"></div>
+    <span id="onlineText">Offline</span>
+    &nbsp;·&nbsp;
+    <div class="status-dot" id="swDot"></div>
+    <span id="swText">Service Worker</span>
+  </div>
+
+  <!-- PWA Install banner -->
+  <div id="installBanner">
+    <div class="banner-text">
+      <strong>Install App</strong>
+      <span>Add to your home screen to use offline</span>
+    </div>
+    <button id="installBtn">Install</button>
+  </div>
+
+  <!-- Hourglass -->
+  <div class="hourglass-wrap" id="hourglassWrap">
+    <svg class="hourglass-svg" viewBox="0 0 200 320" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="rimGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#c8960a" />
+          <stop offset="50%" stop-color="#f0c040" />
+          <stop offset="100%" stop-color="#c8960a" />
+        </linearGradient>
+        <linearGradient id="glassGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.12)" />
+          <stop offset="100%" stop-color="rgba(255,255,255,0.03)" />
+        </linearGradient>
+        <clipPath id="upperClip">
+          <polygon points="30,20 170,20 108,155 92,155" />
+        </clipPath>
+        <clipPath id="lowerClip">
+          <polygon points="92,165 108,165 170,300 30,300" />
+        </clipPath>
+        <!-- Shine reflections -->
+        <linearGradient id="shineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="rgba(255,255,255,0)" />
+          <stop offset="40%" stop-color="rgba(255,255,255,0.15)" />
+          <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+        </linearGradient>
+      </defs>
+
+      <!-- Top cap -->
+      <rect x="18" y="10" width="164" height="16" rx="8" fill="url(#rimGrad)" />
+      <!-- Bottom cap -->
+      <rect x="18" y="294" width="164" height="16" rx="8" fill="url(#rimGrad)" />
+      <!-- Left pillar -->
+      <rect x="18" y="24" width="10" height="272" rx="4" fill="url(#rimGrad)" opacity="0.8" />
+      <!-- Right pillar -->
+      <rect x="172" y="24" width="10" height="272" rx="4" fill="url(#rimGrad)" opacity="0.8" />
+
+      <!-- Upper glass bulb -->
+      <polygon points="30,20 170,20 108,155 92,155" fill="url(#glassGrad)" stroke="rgba(240,192,64,0.35)" stroke-width="1.5" />
+      <!-- Lower glass bulb -->
+      <polygon points="92,165 108,165 170,300 30,300" fill="url(#glassGrad)" stroke="rgba(240,192,64,0.35)" stroke-width="1.5" />
+
+      <!-- Neck oval -->
+      <ellipse cx="100" cy="160" rx="9" ry="6" fill="rgba(240,192,64,0.15)" stroke="rgba(240,192,64,0.5)" stroke-width="1" />
+
+      <!-- Shine -->
+      <polygon points="38,28 68,28 58,120 38,120" fill="url(#shineGrad)" opacity="0.6" />
+
+      <!-- Sand level indicators (static lines) -->
+      <line x1="36" y1="80" x2="164" y2="80" stroke="rgba(255,200,100,0.06)" stroke-width="1" />
+      <line x1="42" y1="110" x2="158" y2="110" stroke="rgba(255,200,100,0.06)" stroke-width="1" />
+      <line x1="50" y1="135" x2="150" y2="135" stroke="rgba(255,200,100,0.06)" stroke-width="1" />
+
+      <!-- SVG sand fills (animated by JS) -->
+      <!-- Upper sand heap -->
+      <polygon id="upperSand" points="30,20 170,20 108,155 92,155" fill="rgba(255,180,80,0.55)" clip-path="url(#upperClip)" />
+      <!-- Lower sand heap -->
+      <polygon id="lowerSand" points="92,165 108,165 170,300 30,300" fill="rgba(255,180,80,0.55)" clip-path="url(#lowerClip)" />
+
+      <!-- Upper sand surface line -->
+      <line id="upperSandLine" x1="30" y1="20" x2="170" y2="20" stroke="rgba(255,180,80,0.8)" stroke-width="2" stroke-linecap="round" />
+    </svg>
+
+    <!-- Particle canvas -->
+    <canvas id="sandCanvas"></canvas>
+  </div>
+
+  <!-- Time display -->
+  <div class="time-display" id="timeDisplay">5:00</div>
+  <div class="time-label" id="timeLabel">MINUTES · SECONDS</div>
+
+  <!-- Duration picker -->
+  <div class="duration-picker">
+    <button class="dur-btn" data-mins="1">1 min</button>
+    <button class="dur-btn active" data-mins="5">5 min</button>
+    <button class="dur-btn" data-mins="10">10 min</button>
+    <button class="dur-btn" data-mins="15">15 min</button>
+    <button class="dur-btn" data-mins="25">25 min</button>
+  </div>
+
+  <div class="custom-wrap">
+    <label>Custom</label>
+    <input type="range" id="customRange" min="1" max="60" value="5" step="1" />
+    <span id="customLabel">5 min</span>
+  </div>
+
+  <!-- Progress ring -->
+  <div class="progress-ring">
+    <svg><circle class="track" cx="30" cy="30" r="26"/><circle class="fill" id="progressFill" cx="30" cy="30" r="26"/></svg>
+    <div class="pct-text" id="pctText">100%</div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="btn btn-primary" id="startBtn">Start</button>
+    <button class="btn btn-secondary" id="resetBtn">Reset</button>
+  </div>
+
+  <footer>PWA · Works Offline · Service Worker Enabled</footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ===== STARS =====
+(function(){
+  const c = document.getElementById('stars');
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div');
+    s.className='star';
+    const sz = Math.random()*2+0.5;
+    const min = (Math.random()*0.1+0.05).toFixed(2);
+    const max = (Math.random()*0.5+0.3).toFixed(2);
+    const dur = (Math.random()*4+2).toFixed(1)+'s';
+    s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*100}%;left:${Math.random()*100}%;--min:${min};--max:${max};--d:${dur};animation-delay:${(Math.random()*5).toFixed(1)}s`;
+    c.appendChild(s);
+  }
+})();
+
+// ===== TIMER LOGIC =====
+let totalSecs = 300, remaining = 300, timerId = null, running = false;
+const PARTICLE_COUNT = 180;
+
+// Canvas setup
+const canvas = document.getElementById('sandCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resizeCanvas(){
+  const wrap = document.getElementById('hourglassWrap');
+  W = wrap.offsetWidth; H = wrap.offsetHeight;
+  canvas.width = W; canvas.height = H;
+}
+resizeCanvas();
+window.addEventListener('resize', ()=>{ resizeCanvas(); drawSand(); });
+
+// ===== SAND PARTICLE SYSTEM =====
+// Map hourglass geometry
+function getUpperRegion(progress){ // progress 0=full, 1=empty
+  // Upper funnel: triangle from y=25 to y=148 (in 320px space, scale to H)
+  const scale = H / 320;
+  const y0 = 22*scale, y1 = 152*scale;
+  const cx = W/2;
+  // At y, width = lerp from wide(y0) to narrow(y1)
+  // At y0: half-width = 70*scale; at y1: half-width = 8*scale
+  // Filled from top down — as progress increases, surface rises
+  const totalH = y1 - y0;
+  const surfaceY = y0 + totalH * progress; // surface moves down as sand falls
+  return { y0, y1, surfaceY, scale, cx };
+}
+function getLowerRegion(){
+  const scale = H / 320;
+  const y0 = 165*scale, y1 = 298*scale;
+  return { y0, y1, scale, cx: W/2 };
+}
+function halfWidthAt(y, scale){
+  const yt = 22*scale, yb = 298*scale, yNeck = 160*scale;
+  if(y < yNeck){
+    // upper: wide at top, narrow at neck
+    const t = (y - yt) / (yNeck - yt);
+    return (70 - t*62) * scale;
+  } else {
+    const t = (y - yNeck) / (yb - yNeck);
+    return (8 + t*62) * scale;
+  }
+}
+
+// Particles array: each {x, y, vx, vy, r, col, zone}
+// zone: 'upper' (static in upper bulb), 'falling' (through neck), 'lower' (settled in lower bulb)
+let particles = [];
+
+function initParticles(){
+  particles = [];
+  const scale = H/320;
+  const y0 = 25*scale, y1 = 150*scale, cx = W/2;
+  for(let i=0;i<PARTICLE_COUNT;i++){
+    // Place randomly in upper funnel
+    const y = y0 + Math.random()*(y1-y0);
+    const hw = halfWidthAt(y, scale) * 0.85;
+    const x = cx - hw + Math.random()*2*hw;
+    particles.push({
+      x, y, vx:0, vy:0,
+      r: (Math.random()*1.5+0.8)*scale,
+      hue: 30+Math.random()*30,
+      sat: 70+Math.random()*30,
+      lit: 55+Math.random()*25,
+      zone:'upper',
+      fallDelay: 0,
+      settled: false
+    });
+  }
+}
+
+let fallingCount = 0;
+
+function updateParticles(progress){
+  // progress: 0=timer just started, 1=done
+  // Number of particles that should be in lower zone
+  const shouldBeDown = Math.round(progress * PARTICLE_COUNT);
+  const scale = H/320;
+  const neckX = W/2, neckY = 160*scale;
+  const fallSpeed = 2.5 * scale;
+  const trickleRate = 0.3; // chance per frame to start falling
+
+  let downCount = particles.filter(p=>p.zone==='lower'||p.zone==='falling').length;
+
+  particles.forEach((p,i) => {
+    if(p.zone==='upper'){
+      if(downCount < shouldBeDown && Math.random() < trickleRate / PARTICLE_COUNT * 6){
+        // Start falling: launch toward neck
+        p.zone = 'falling';
+        p.vy = fallSpeed;
+        p.vx = (neckX - p.x) * 0.08;
+        downCount++;
+      } else {
+        // Gentle jitter to look like sand texture
+        p.x += (Math.random()-0.5)*0.3;
+        p.y += (Math.random()-0.5)*0.2;
+        // Keep within upper funnel
+        const hw = halfWidthAt(p.y, scale)*0.88;
+        const cx = W/2;
+        if(p.x < cx-hw) p.x = cx-hw+Math.random()*3;
+        if(p.x > cx+hw) p.x = cx+hw-Math.random()*3;
+        const y0 = 25*scale, y1 = 150*scale;
+        if(p.y < y0) p.y = y0+1;
+        if(p.y > y1) p.y = y1-1;
+      }
+    } else if(p.zone==='falling'){
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.15 * scale;
+      p.vx *= 0.95;
+      // When past neck, it enters lower zone
+      if(p.y > neckY+12*scale){
+        p.zone = 'lower';
+        p.vy *= 0.5;
+        p.vx = (Math.random()-0.5)*fallSpeed*0.8;
+      }
+    } else if(p.zone==='lower'){
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.2 * scale;
+      p.vx *= 0.88;
+      // Keep within lower funnel, settle
+      const y0 = 165*scale, y1 = 296*scale;
+      const hw = halfWidthAt(p.y, scale)*0.88;
+      const cx = W/2;
+      if(p.x < cx-hw){ p.x=cx-hw+1; p.vx=Math.abs(p.vx)*0.5; }
+      if(p.x > cx+hw){ p.x=cx+hw-1; p.vx=-Math.abs(p.vx)*0.5; }
+      if(p.y > y1-2*scale){ p.y=y1-2*scale; p.vy*=-0.15; if(Math.abs(p.vy)<0.1) p.vy=0; }
+      if(p.y < y0){ p.y=y0+1; }
+    }
+  });
+}
+
+// Stream particle — falling through neck
+function drawStreamParticle(){
+  // Show a stream effect through the neck if running
+  if(!running) return;
+  const scale = H/320;
+  const cx = W/2, nyTop = 150*scale, nyBot = 170*scale;
+  for(let i=0;i<4;i++){
+    const t = i/4;
+    const y = nyTop + t*(nyBot-nyTop);
+    const x = cx + (Math.random()-0.5)*4*scale;
+    const a = 0.6 - t*0.3;
+    ctx.beginPath();
+    ctx.arc(x, y, 1.2*scale, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,185,60,${a})`;
+    ctx.fill();
+  }
+}
+
+function drawSand(){
+  ctx.clearRect(0,0,W,H);
+  const scale = H/320;
+
+  // Draw all particles
+  particles.forEach(p => {
+    const alpha = p.zone==='falling' ? 0.9 : 0.82;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = `hsla(${p.hue},${p.sat}%,${p.lit}%,${alpha})`;
+    ctx.fill();
+  });
+
+  if(running) drawStreamParticle();
+}
+
+// Update SVG sand level
+function updateSVGSand(progress){
+  // progress: 0=full top, 1=empty top
+  const upperSand = document.getElementById('upperSand');
+  const upperLine = document.getElementById('upperSandLine');
+  const lowerSand = document.getElementById('lowerSand');
+
+  // Upper fill: interpolate top polygon y
+  const py0 = 20; // top
+  const py1 = 155; // neck top
+  const cx = 100;
+  const surfaceY = py0 + (py1-py0)*progress;
+  const halfW = 70 - (70-16)*(surfaceY-py0)/(py1-py0);
+
+  if(surfaceY >= py1){
+    upperSand.setAttribute('points','100,155 100,155 108,155 92,155');
+    upperLine.setAttribute('x1','92'); upperLine.setAttribute('x2','108');
+    upperLine.setAttribute('y1','155'); upperLine.setAttribute('y2','155');
+  } else {
+    const pts = `${cx-halfW},${surfaceY} ${cx+halfW},${surfaceY} 108,155 92,155`;
+    upperSand.setAttribute('points', pts);
+    upperLine.setAttribute('x1', cx-halfW); upperLine.setAttribute('x2', cx+halfW);
+    upperLine.setAttribute('y1', surfaceY); upperLine.setAttribute('y2', surfaceY);
+  }
+
+  // Lower fill: grows from narrow at neck to wide at bottom
+  const ly0=165, ly1=300;
+  const filledH = (ly1-ly0)*progress;
+  const lsurfaceY = ly1 - filledH;
+  const lhalfW = 16 + (70-16)*((lsurfaceY-ly0)/(ly1-ly0));
+
+  if(progress <= 0){
+    lowerSand.setAttribute('points','100,165 100,165 108,165 92,165');
+  } else {
+    const pts2 = `${cx-lhalfW},${lsurfaceY} ${cx+lhalfW},${lsurfaceY} 170,300 30,300`;
+    lowerSand.setAttribute('points', pts2);
+  }
+}
+
+// ===== TIME FORMATTING =====
+function fmtTime(s){
+  const m = Math.floor(s/60), sec = s%60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+// ===== UI UPDATES =====
+function updateUI(){
+  const prog = 1 - remaining/totalSecs; // 0=start, 1=done
+  document.getElementById('timeDisplay').textContent = fmtTime(remaining);
+
+  // Progress ring
+  const pct = Math.round((remaining/totalSecs)*100);
+  const circ = 163;
+  document.getElementById('progressFill').style.strokeDashoffset = circ - circ*(1-remaining/totalSecs);
+  document.getElementById('pctText').textContent = pct+'%';
+
+  // SVG sand
+  updateSVGSand(prog);
+
+  // Particles
+  updateParticles(prog);
+  drawSand();
+}
+
+// ===== ANIMATION LOOP =====
+let lastTick = 0;
+function animLoop(ts){
+  if(!running){ animLoop._id=null; return; }
+  // Smooth particle animation ~60fps
+  updateParticles(1 - remaining/totalSecs);
+  drawSand();
+  animLoop._id = requestAnimationFrame(animLoop);
+}
+
+// ===== TIMER =====
+function startTimer(){
+  if(running) return;
+  if(remaining <= 0){ resetTimer(); return; }
+  running = true;
+  document.getElementById('startBtn').textContent = 'Pause';
+  document.getElementById('hourglassWrap').classList.remove('done');
+
+  timerId = setInterval(()=>{
+    remaining--;
+    updateUI();
+    if(remaining <= 0){
+      clearInterval(timerId);
+      running = false;
+      document.getElementById('startBtn').textContent = 'Done!';
+      document.getElementById('hourglassWrap').classList.add('done');
+      showToast('⏳ Time is up!');
+      animLoop._id && cancelAnimationFrame(animLoop._id);
+      drawSand();
+      // Vibrate if supported
+      if(navigator.vibrate) navigator.vibrate([300,100,300,100,300]);
+      // Notification
+      if(Notification.permission==='granted'){
+        new Notification('Sand Timer', { body: 'Your timer has finished!', icon: 'icons/icon-192.png' });
+      }
+    }
+  }, 1000);
+
+  animLoop._id && cancelAnimationFrame(animLoop._id);
+  animLoop._id = requestAnimationFrame(animLoop);
+}
+
+function pauseTimer(){
+  if(!running) return;
+  running = false;
+  clearInterval(timerId);
+  document.getElementById('startBtn').textContent = 'Resume';
+  animLoop._id && cancelAnimationFrame(animLoop._id);
+}
+
+function resetTimer(){
+  pauseTimer();
+  remaining = totalSecs;
+  running = false;
+  document.getElementById('startBtn').textContent = 'Start';
+  document.getElementById('hourglassWrap').classList.remove('done');
+  initParticles();
+  updateUI();
+}
+
+function setDuration(mins){
+  pauseTimer();
+  totalSecs = mins * 60;
+  remaining = totalSecs;
+  document.getElementById('startBtn').textContent = 'Start';
+  document.getElementById('hourglassWrap').classList.remove('done');
+  initParticles();
+  updateUI();
+}
+
+// ===== BUTTONS =====
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  if(!running && remaining>0) startTimer();
+  else if(running) pauseTimer();
+  else { resetTimer(); startTimer(); }
+});
+document.getElementById('resetBtn').addEventListener('click', resetTimer);
+
+// Duration buttons
+document.querySelectorAll('.dur-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.dur-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const mins = +btn.dataset.mins;
+    document.getElementById('customRange').value = mins;
+    updateRangeStyle(mins);
+    document.getElementById('customLabel').textContent = mins+' min';
+    setDuration(mins);
+  });
+});
+
+// Custom range
+const range = document.getElementById('customRange');
+function updateRangeStyle(val){
+  const pct = ((val-1)/(60-1))*100;
+  range.style.setProperty('--pct', pct+'%');
+}
+range.addEventListener('input', ()=>{
+  const v = +range.value;
+  document.getElementById('customLabel').textContent = v+' min';
+  updateRangeStyle(v);
+  document.querySelectorAll('.dur-btn').forEach(b=>b.classList.remove('active'));
+  setDuration(v);
+});
+updateRangeStyle(5);
+
+// ===== TOAST =====
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3500);
+}
+
+// ===== PWA STATUS =====
+function updateStatus(){
+  const dot = document.getElementById('onlineDot');
+  const txt = document.getElementById('onlineText');
+  if(navigator.onLine){ dot.classList.add('online'); txt.textContent='Online'; }
+  else { dot.classList.remove('online'); txt.textContent='Offline'; }
+}
+window.addEventListener('online', updateStatus);
+window.addEventListener('offline', updateStatus);
+updateStatus();
+
+// ===== SERVICE WORKER =====
+const swDot = document.getElementById('swDot');
+const swTxt = document.getElementById('swText');
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    swDot.classList.add('installed');
+    swTxt.textContent = 'SW Active';
+    showToast('✓ App ready for offline use');
+  }).catch(err=>{
+    swTxt.textContent = 'SW Failed';
+    console.error(err);
+  });
+} else {
+  swTxt.textContent = 'SW Unsupported';
+}
+
+// ===== PWA INSTALL =====
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.add('show');
+});
+document.getElementById('installBtn').addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if(outcome==='accepted') showToast('✓ App installed!');
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('show');
+});
+window.addEventListener('appinstalled', ()=>{
+  showToast('✓ Installed on your device!');
+  document.getElementById('installBanner').classList.remove('show');
+});
+
+// ===== NOTIFICATIONS PERMISSION =====
+if('Notification' in window && Notification.permission === 'default'){
+  setTimeout(()=>Notification.requestPermission(), 4000);
+}
+
+// ===== INIT =====
+initParticles();
+updateUI();
+drawSand();
+</script>
+</body>
+</html>
