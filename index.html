@@ -285,24 +285,121 @@
     .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
     .status-dot.installed { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
 
-    /* PWA Install banner */
-    #installBanner {
-      display: none;
+    /* PWA Install Card */
+    #installCard {
       width: 100%;
       max-width: 440px;
-      background: linear-gradient(135deg, rgba(240,192,64,0.12), rgba(255,140,66,0.08));
-      border: 1px solid var(--rim);
-      border-radius: 16px;
-      padding: 1rem 1.4rem;
-      margin-bottom: 1.2rem;
-      gap: 12px;
-      align-items: center;
+      background: linear-gradient(145deg, rgba(240,192,64,0.1), rgba(255,140,66,0.06));
+      border: 1px solid rgba(240,192,64,0.35);
+      border-radius: 20px;
+      padding: 1.3rem 1.5rem;
+      margin-bottom: 1.4rem;
     }
-    #installBanner.show { display: flex; }
-    #installBanner .banner-text { flex: 1; }
-    #installBanner .banner-text strong { font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--gold); display: block; margin-bottom: 2px; }
-    #installBanner .banner-text span { font-size: 0.78rem; color: var(--muted); }
-    #installBtn { font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 600; padding: 0.45rem 1.1rem; background: var(--gold); color: #1a0a00; border: none; border-radius: 50px; cursor: pointer; white-space: nowrap; }
+    #installCard.hidden { display: none; }
+
+    .install-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0.9rem;
+    }
+    .install-icon {
+      width: 36px; height: 36px;
+      background: rgba(240,192,64,0.2);
+      border: 1px solid rgba(240,192,64,0.4);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .install-header-text strong {
+      font-family: 'Cinzel', serif;
+      font-size: 0.9rem;
+      color: var(--gold);
+      display: block;
+      letter-spacing: 0.05em;
+    }
+    .install-header-text span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    /* One-tap install button (Chrome Android only) */
+    #installBtn {
+      display: none;
+      width: 100%;
+      font-family: 'Cinzel', serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 0.8rem 1.2rem;
+      background: linear-gradient(135deg, var(--gold), var(--amber));
+      color: #1a0a00;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      margin-bottom: 0.9rem;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+    #installBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(240,192,64,0.45); }
+    #installBtn.visible { display: block; }
+
+    /* Manual steps */
+    .install-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+    .install-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .step-num {
+      width: 20px; height: 20px;
+      background: rgba(240,192,64,0.2);
+      border: 1px solid rgba(240,192,64,0.35);
+      border-radius: 50%;
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--gold);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .step-text { flex: 1; }
+    .step-text em {
+      font-style: normal;
+      color: var(--gold);
+      font-weight: 600;
+    }
+    .install-divider {
+      height: 1px;
+      background: rgba(240,192,64,0.15);
+      margin: 0.8rem 0 0.7rem;
+    }
+    .install-platform-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(240,192,64,0.55);
+      margin-bottom: 0.55rem;
+      font-family: 'Cinzel', serif;
+    }
+    #installCard.installed-state .install-installed-msg {
+      display: flex !important;
+    }
+    .install-installed-msg {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--success);
+    }
 
     /* Toast */
     #toast {
@@ -372,13 +469,85 @@
     <span id="swText">Service Worker</span>
   </div>
 
-  <!-- PWA Install banner -->
-  <div id="installBanner">
-    <div class="banner-text">
-      <strong>Install App</strong>
-      <span>Add to your home screen to use offline</span>
+  <!-- PWA Install Card — always visible until installed -->
+  <div id="installCard">
+    <div class="install-header">
+      <div class="install-icon">⌛</div>
+      <div class="install-header-text">
+        <strong>Install Sand Timer</strong>
+        <span>Use it offline, right from your home screen</span>
+      </div>
     </div>
-    <button id="installBtn">Install</button>
+
+    <!-- One-tap button: only shown when Chrome fires beforeinstallprompt -->
+    <button id="installBtn">⬇ Tap to Install App</button>
+
+    <!-- Installed confirmation -->
+    <div class="install-installed-msg">
+      <span style="font-size:1.1rem">✓</span>
+      <span>App is installed on your device!</span>
+    </div>
+
+    <!-- Android Chrome manual steps -->
+    <div id="stepsAndroid">
+      <div class="install-platform-label">Android · Chrome</div>
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="step-num">1</div>
+          <div class="step-text">Tap the <em>⋮ three-dot menu</em> at the top-right of Chrome</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">2</div>
+          <div class="step-text">Tap <em>"Add to Home Screen"</em> or <em>"Install app"</em></div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">3</div>
+          <div class="step-text">Tap <em>"Install"</em> on the prompt — done!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- iOS Safari manual steps -->
+    <div id="stepsIOS" style="display:none">
+      <div class="install-platform-label">iPhone · Safari</div>
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="step-num">1</div>
+          <div class="step-text">Open this page in <em>Safari</em> (not Chrome — iOS requires Safari)</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">2</div>
+          <div class="step-text">Tap the <em>Share button</em> (the box with an arrow at the bottom)</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">3</div>
+          <div class="step-text">Scroll down and tap <em>"Add to Home Screen"</em></div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">4</div>
+          <div class="step-text">Tap <em>"Add"</em> — the app icon appears on your home screen!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop Chrome steps -->
+    <div id="stepsDesktop" style="display:none">
+      <div class="install-platform-label">Desktop · Chrome</div>
+      <div class="install-steps">
+        <div class="install-step">
+          <div class="step-num">1</div>
+          <div class="step-text">Look for the <em>install icon</em> (⊕) in the address bar</div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">2</div>
+          <div class="step-text">Or open <em>Chrome menu (⋮) → "Install Sand Timer…"</em></div>
+        </div>
+        <div class="install-step">
+          <div class="step-num">3</div>
+          <div class="step-text">Click <em>"Install"</em> on the dialog</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Hourglass -->
@@ -874,23 +1043,66 @@ if('serviceWorker' in navigator){
 }
 
 // ===== PWA INSTALL =====
+const installCard = document.getElementById('installCard');
+const installBtn = document.getElementById('installBtn');
+
+// Detect platform
+const ua = navigator.userAgent;
+const isIOS = /iPhone|iPad|iPod/i.test(ua);
+const isAndroid = /Android/i.test(ua);
+const isMobile = isIOS || isAndroid;
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  || navigator.standalone === true;
+
+// If already installed as standalone, show installed message and hide steps
+if (isStandalone) {
+  installCard.classList.add('installed-state');
+  document.getElementById('stepsAndroid').style.display = 'none';
+  document.getElementById('stepsIOS').style.display = 'none';
+  document.getElementById('stepsDesktop').style.display = 'none';
+} else {
+  // Show the right set of steps based on platform
+  if (isIOS) {
+    document.getElementById('stepsAndroid').style.display = 'none';
+    document.getElementById('stepsIOS').style.display = 'block';
+  } else if (isAndroid) {
+    // Android steps already visible by default
+  } else {
+    // Desktop
+    document.getElementById('stepsAndroid').style.display = 'none';
+    document.getElementById('stepsDesktop').style.display = 'block';
+  }
+}
+
+// beforeinstallprompt: Chrome Android/Desktop — show the one-tap button
 let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e=>{
+window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
-  document.getElementById('installBanner').classList.add('show');
+  installBtn.classList.add('visible');
+  // Hide manual steps since the button handles it
+  document.getElementById('stepsAndroid').style.display = 'none';
+  document.getElementById('stepsDesktop').style.display = 'none';
 });
-document.getElementById('installBtn').addEventListener('click', async ()=>{
-  if(!deferredPrompt) return;
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
   deferredPrompt.prompt();
   const { outcome } = await deferredPrompt.userChoice;
-  if(outcome==='accepted') showToast('✓ App installed!');
+  if (outcome === 'accepted') {
+    showToast('✓ App installed!');
+    installBtn.classList.remove('visible');
+  }
   deferredPrompt = null;
-  document.getElementById('installBanner').classList.remove('show');
 });
-window.addEventListener('appinstalled', ()=>{
+
+window.addEventListener('appinstalled', () => {
   showToast('✓ Installed on your device!');
-  document.getElementById('installBanner').classList.remove('show');
+  installBtn.classList.remove('visible');
+  installCard.classList.add('installed-state');
+  document.getElementById('stepsAndroid').style.display = 'none';
+  document.getElementById('stepsIOS').style.display = 'none';
+  document.getElementById('stepsDesktop').style.display = 'none';
 });
 
 // ===== NOTIFICATIONS PERMISSION =====
